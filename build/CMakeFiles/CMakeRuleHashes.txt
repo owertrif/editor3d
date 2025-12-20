@@ -1,0 +1,6 @@
+# Hashes of file build rules.
+1e7c54f71cb23e0fda466d0e86061ad2 CMakeFiles/copy_shaders
+8496eb283ae2d73ed4c67aee689b9037 fragment.fs
+417a75ecbc5fad9f756d016830dbd025 lightfragment.fs
+5b12df64692644e6717e0eebf97cc72a lightvertex.vs
+802825ba690ef9a37c9d88936d76bd01 vertex.vs
