@@ -13,7 +13,7 @@ Model::Model(const char* file) {
 
 void Model::Draw(Shader& shader_program, Camera& camera) {
 	for (unsigned int i = 0; i < meshes.size(); i++) {
-		meshes[i].Mesh::Draw(shader_program, camera, matricesMeshes[i]);
+		meshes[i].Mesh::Draw(shader_program, camera, matricesMeshes[i], translationsMeshes[i], rotationMeshes[i], scaleMashes[i]);
 	}
 }
 
@@ -73,24 +73,24 @@ std::vector<GLuint> Model::getIndices(json accessor) {
 	unsigned int beginningOfData = accByteOffset + byteOffset;
 	
 	if (componentType == 5125) {
-		for (unsigned int i = beginningOfData; i < beginningOfData + count * 4; i) {
-			unsigned char bytes[] = { data[i++],data[i++],data[i++], data[i++] };
+		for (unsigned int i = beginningOfData; i < beginningOfData + count * 4; i+=4) {
+			unsigned char bytes[] = { data[i],data[i+1],data[i+2], data[i+3] };
 			unsigned int value;
 			std::memcpy(&value, bytes, sizeof(unsigned int));
 			indices.push_back(value);
 		}
 	}
 	else if (componentType == 5123) {
-		for (unsigned int i = beginningOfData; i < beginningOfData + count * 2; i) {
-			unsigned char bytes[] = { data[i++],data[i++]};
+		for (unsigned int i = beginningOfData; i < beginningOfData + count * 2; i+=2) {
+			unsigned char bytes[] = { data[i],data[i+1]};
 			unsigned int value;
 			std::memcpy(&value, bytes, sizeof(unsigned short));
 			indices.push_back((GLuint)value);
 		}
 	}
 	else if (componentType == 5122) {
-		for (unsigned int i = beginningOfData; i < beginningOfData + count * 2; i) {
-			unsigned char bytes[] = { data[i++],data[i++] };
+		for (unsigned int i = beginningOfData; i < beginningOfData + count * 2; i+=2) {
+			unsigned char bytes[] = { data[i],data[i+1] };
 			unsigned int value;
 			std::memcpy(&value, bytes, sizeof(short));
 			indices.push_back((GLuint)value);
@@ -204,8 +204,9 @@ void Model::loadMeshes(unsigned int indMeshes) {
 
 void Model::traverseNode(unsigned int nextNode, glm::mat4 matrix)
 {
+	
 	json node = JSON["nodes"][nextNode];
-
+	
 	glm::vec3 translation = glm::vec3(0.0f, 0.0f, 0.0f);
 	if (node.find("translation") != node.end()) {
 		float transValues[3];
@@ -213,7 +214,7 @@ void Model::traverseNode(unsigned int nextNode, glm::mat4 matrix)
 			transValues[i] = (node["translation"][i]);
 		translation = glm::make_vec3(transValues);
 	}
-
+	
 	glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 	if (node.find("rotation") != node.end()) {
 		float rotValues[4]{
@@ -230,8 +231,9 @@ void Model::traverseNode(unsigned int nextNode, glm::mat4 matrix)
 		float scaleValues[3];
 		for (unsigned int i = 0; i < node["scale"].size(); i++)
 			scaleValues[i] = (node["scale"][i]);
-		translation = glm::make_vec3(scaleValues);
+		scale = glm::make_vec3(scaleValues);
 	}
+	
 	glm::mat4 matNode = glm::mat4(1.0f);
 	if (node.find("matrix") != node.end()) {
 		float matValues[16];
@@ -247,8 +249,7 @@ void Model::traverseNode(unsigned int nextNode, glm::mat4 matrix)
 	trans = glm::translate(trans, translation);
 	rot = glm::mat4_cast(rotation);
 	sca = glm::scale(sca, scale);
-
-	glm::mat4 matNextNode = matrix * trans * rot * sca;
+	glm::mat4 matNextNode = matrix * matNode * trans * rot * sca;
 
 	if (node.find("mesh") != node.end()) {
 		translationsMeshes.push_back(translation);
@@ -258,9 +259,8 @@ void Model::traverseNode(unsigned int nextNode, glm::mat4 matrix)
 
 		loadMeshes(node["mesh"]);
 	}
-
 	if (node.find("children") != node.end()) {
-		for (unsigned int i = 0; i < node["children"]; i++)
+		for (unsigned int i = 0; i < node["children"].size(); i++)
 			traverseNode(node["children"][i], matNextNode);
 	}
 }

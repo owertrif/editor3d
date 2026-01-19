@@ -56,7 +56,7 @@ void Mesh::Draw(
 
     trans = glm::translate(trans, translation);
     rot = glm::mat4_cast(rotation);
-    sca = glm::translate(sca, scale);
+    sca = glm::scale(sca, scale);
     
     shader_programm.setMat4("translation", trans);
     shader_programm.setMat4("rotation", rot);

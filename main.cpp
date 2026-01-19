@@ -57,7 +57,7 @@ int main(){
 
     fs::path parentDir = fs::current_path();
     std::cout << "ParentDir = " << parentDir << std::endl;
-    fs::path modelPath = parentDir / "Resources" / "models" / "bunny" / "scene.gltf";
+    fs::path modelPath = parentDir / "Resources" / "models" / "grindstone" / "scene.gltf";
     std::cout << "Path = " << modelPath << std::endl;
 
     Model model(modelPath.string().c_str());

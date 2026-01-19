@@ -65,11 +65,19 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${OPENGL_LIBRARIES}
 )
 
-file(COPY
+configure_file(
     ${CMAKE_SOURCE_DIR}/vertex.vs
+    ${CMAKE_CURRENT_BINARY_DIR}/vertex.vs
+    COPYONLY
+)
+
+configure_file(
     ${CMAKE_SOURCE_DIR}/fragment.fs
-    ${CMAKE_SOURCE_DIR}/lightvertex.vs
-    ${CMAKE_SOURCE_DIR}/lightfragment.fs
+    ${CMAKE_CURRENT_BINARY_DIR}/fragment.fs
+    COPYONLY
+)
+
+file(COPY
     ${CMAKE_SOURCE_DIR}/Resources
     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
 )

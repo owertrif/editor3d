@@ -27,6 +27,6 @@ void main(){
     
     TexCoords = mat2(0.0, -1.0, 1.0, 0.0) * aTexCoords;
 
-    gl_Position = cameraMatrix * model * vec4(aPos,1.0);    
+    gl_Position = cameraMatrix * vec4(currentPos,1.0);    
 
 }
