@@ -12,6 +12,8 @@
 #include <glm/glm/gtc/type_ptr.hpp>
 #include "materials/material.h"
 
+std::string get_file_contents(const char* filename);
+
 class Shader{
 public:
     GLuint ID;

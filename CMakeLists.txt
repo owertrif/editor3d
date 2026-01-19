@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 3.10)
 project(editor3d)
 
-set(CMAKE_CXX_STANDART 20)
-
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 #---Sources---
 
+
+set(GLFW_ROOT "C:/vcpkg/installed/x64-windows/share/glfw3")
 set(SOURCES
 	main.cpp
 	glad/glad.c
@@ -47,42 +49,27 @@ include_directories(
     
 )
 
-include_directories(${ASSIMP_INCLUDE_DIR})
-link_directories(${ASSIMP_LIB_DIR})
-
-#---SYS PACKAGES---
-find_package(OpenGL REQUIRED)
-find_package(glfw3 REQUIRED)
-find_package(glm REQUIRED)
+find_package(OpenGl REQUIRED)
+find_package(glfw3 REQUIRED PATHS ${GLFW_ROOT} NO_DEFAULT_PATH)
+find_package(glm CONFIG REQUIRED)
+find_package(assimp CONFIG REQUIRED)
 
 #---EXECUTABLE---
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 #---link libs---
 target_link_libraries(${PROJECT_NAME} PRIVATE
     glfw
+    glm::glm
+    assimp::assimp
     ${OPENGL_LIBRARIES}
-    dl
 )
 
-function(copy_shader SHADER_FILE)
-    get_filename_component(SHADER_NAME ${SHADER_FILE} NAME)
-    add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_SOURCE_DIR}/${SHADER_FILE}
-            ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}
-        DEPENDS ${CMAKE_SOURCE_DIR}/${SHADER_FILE}
-    )
-    list(APPEND SHADER_OUTPUTS ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME})
-    set(SHADER_OUTPUTS "${SHADER_OUTPUTS}" PARENT_SCOPE)
-endfunction()
-
-copy_shader(vertex.vs)
-copy_shader(fragment.fs)
-copy_shader(lightvertex.vs)
-copy_shader(lightfragment.fs)
-
-add_custom_target(copy_shaders ALL DEPENDS ${SHADER_OUTPUTS})
-add_dependencies(editor3d copy_shaders)
+file(COPY
+    ${CMAKE_SOURCE_DIR}/vertex.vs
+    ${CMAKE_SOURCE_DIR}/fragment.fs
+    ${CMAKE_SOURCE_DIR}/lightvertex.vs
+    ${CMAKE_SOURCE_DIR}/lightfragment.fs
+    ${CMAKE_SOURCE_DIR}/Resources
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
+)

@@ -20,7 +20,14 @@ Mesh::Mesh(std::vector<Vertex>& vertices, std::vector<GLuint>& indices, std::vec
     EBO.Unbind();
 }
 
-void Mesh::Draw(Shader& shader_programm, Camera& camera){
+void Mesh::Draw(
+    Shader& shader_programm, 
+    Camera& camera,
+    glm::mat4 matrix,
+    glm::vec3 translation,
+    glm::quat rotation,
+    glm::vec3 scale
+    ){
     shader_programm.use();
     mesh_VAO.Bind();
 
@@ -42,6 +49,19 @@ void Mesh::Draw(Shader& shader_programm, Camera& camera){
     }
     shader_programm.setVec3("cameraPos", camera.Position);
     camera.Matrix(shader_programm,"cameraMatrix");
+
+    glm::mat4 trans = glm::mat4(1.0f);
+    glm::mat4 rot = glm::mat4(1.0f);
+    glm::mat4 sca = glm::mat4(1.0f);
+
+    trans = glm::translate(trans, translation);
+    rot = glm::mat4_cast(rotation);
+    sca = glm::translate(sca, scale);
+    
+    shader_programm.setMat4("translation", trans);
+    shader_programm.setMat4("rotation", rot);
+    shader_programm.setMat4("scale", sca);
+    shader_programm.setMat4("model", matrix);
 
     glDrawElements(GL_TRIANGLES, indices.size(),GL_UNSIGNED_INT, 0);
 }

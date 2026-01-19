@@ -1,4 +1,0 @@
-/home/rabadon/editor3d/build/CMakeFiles/editor3d.dir
-/home/rabadon/editor3d/build/CMakeFiles/copy_shaders.dir
-/home/rabadon/editor3d/build/CMakeFiles/edit_cache.dir
-/home/rabadon/editor3d/build/CMakeFiles/rebuild_cache.dir
