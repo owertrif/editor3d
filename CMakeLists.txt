@@ -72,8 +72,20 @@ configure_file(
 )
 
 configure_file(
+    ${CMAKE_SOURCE_DIR}/outliner_vertex.vs
+    ${CMAKE_CURRENT_BINARY_DIR}/outliner_vertex.vs
+    COPYONLY
+)
+
+configure_file(
     ${CMAKE_SOURCE_DIR}/fragment.fs
     ${CMAKE_CURRENT_BINARY_DIR}/fragment.fs
+    COPYONLY
+)
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/outliner_fragment.fs
+    ${CMAKE_CURRENT_BINARY_DIR}/outliner_fragment.fs
     COPYONLY
 )
 

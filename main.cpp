@@ -11,8 +11,8 @@ namespace fs = std::filesystem;
 
 #include <ctime>
 
-#define W_HEIGHT 720
-#define W_WIDTH  1280
+#define W_HEIGHT 768
+#define W_WIDTH  1360
 
 int main(){
     //GLFW window init begin
@@ -25,7 +25,7 @@ int main(){
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     //Creating window
-    GLFWwindow* window = glfwCreateWindow(W_WIDTH, W_HEIGHT, "Fucking 3d editor or pehapse 3d viewer", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(W_WIDTH, W_HEIGHT, "3d editor or pehapse 3d viewer", NULL, NULL);
 
     //checking if the window is created
     if(window == NULL){
@@ -43,11 +43,16 @@ int main(){
     glViewport(0,0,W_WIDTH,W_HEIGHT);
 
     glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
+    glEnable(GL_STENCIL_TEST);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
+
 
     Shader shader("vertex.vs","fragment.fs");
-    
-    Camera camera(W_WIDTH, W_HEIGHT, glm::vec3(0.0f, 2.0f, 2.0f));
+    Shader outliner_shader("outliner_vertex.vs", "outliner_fragment.fs");
+
+
+    Camera camera(W_WIDTH, W_HEIGHT, glm::vec3(0.0f, 2.0f, 20.0f));
 
     glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
     glm::vec3 lightPos = glm::vec3(0.5f, 0.5f, 0.5f);
@@ -55,30 +60,43 @@ int main(){
     lightModel = glm::translate(lightModel, lightPos);
 
     fs::path parentDir = fs::current_path();
-    fs::path modelPath = parentDir / "Resources" / "models" / "trees" / "scene.gltf";
+    fs::path modelPath = parentDir / "Resources" / "models" / "sword" / "scene.gltf";
 
-    Model trees(modelPath.string().c_str());
+    Model model(modelPath.string().c_str());
 
-    fs::path modelPath2 = parentDir / "Resources" / "models" / "ground" / "scene.gltf";
-    Model ground(modelPath2.string().c_str());
+    model.Move(glm::vec3(-20.0f, 0.0f, 0.0f));
 
     //main loop 
     while(!glfwWindowShouldClose(window)){
         //take care of all glfw events
         glfwPollEvents();
 
-        glClearColor(0.85f, 0.85f, 0.90f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         camera.Inputs(window);
-        camera.updateMatrix(45.0f, 0.1f, 100.f);
+        camera.updateMatrix(90.0f, 0.1f, 100.f);
         shader.use();
 
         shader.setVec4("lightColor", lightColor);
         shader.setVec3("lightPos", lightPos);
-        
-        trees.Draw(shader, camera);
-        ground.Draw(shader, camera);
+
+        //
+        glStencilFunc(GL_ALWAYS, 1, 0xFF);
+        glStencilMask(0xFF);
+        model.Draw(shader, camera);
+
+        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+        glStencilMask(0x00);
+        glDisable(GL_DEPTH_TEST);
+
+        outliner_shader.use();
+        outliner_shader.setFloat("outlining", 0.08f);
+        model.Draw(outliner_shader, camera);
+
+        glStencilMask(0xFF);
+        glStencilFunc(GL_ALWAYS, 0, 0xFF);
+        glEnable(GL_DEPTH_TEST);
 
         //swap back buffer with the front buffer
         glfwSwapBuffers(window);

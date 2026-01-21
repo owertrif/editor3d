@@ -13,6 +13,10 @@ public:
 
     void Draw(Shader& shader_programm,Camera& camera);
 
+    void Move(glm::vec3 translation);
+    void Scale(glm::vec3 scale);
+    void Rotate(const glm::vec3& axis, float angle);
+
 private:
     const char* file;
     std::vector<unsigned char> data;
@@ -21,7 +25,7 @@ private:
     std::vector<Mesh> meshes;
     std::vector<glm::vec3> translationsMeshes;
     std::vector<glm::quat> rotationMeshes;
-    std::vector<glm::vec3> scaleMashes;
+    std::vector<glm::vec3> scaleMeshes;
     std::vector<glm::mat4> matricesMeshes;
 
     std::vector<std::string> loadedTexName;
@@ -29,13 +33,11 @@ private:
 
     void loadMeshes(unsigned int indMeshes);
     void traverseNode(unsigned int nextNode, glm::mat4 matrix = glm::mat4(1.0f));
-
+    
     std::vector<unsigned char> getData();
     std::vector<float> getFloats(json accessor);
     std::vector<GLuint> getIndices(json accessor);
     std::vector<Texture> getTextures();
-
-
 
     std::vector<Vertex> assembleVertices(
         std::vector<glm::vec3> positions,
