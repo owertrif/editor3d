@@ -14,8 +14,6 @@ namespace fs = std::filesystem;
 #define W_HEIGHT 720
 #define W_WIDTH  1280
 
-const float W_COEF = float(W_HEIGHT)/float(W_WIDTH);
-
 int main(){
     //GLFW window init begin
     glfwInit();
@@ -45,6 +43,7 @@ int main(){
     glViewport(0,0,W_WIDTH,W_HEIGHT);
 
     glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
 
     Shader shader("vertex.vs","fragment.fs");
     
@@ -56,18 +55,19 @@ int main(){
     lightModel = glm::translate(lightModel, lightPos);
 
     fs::path parentDir = fs::current_path();
-    std::cout << "ParentDir = " << parentDir << std::endl;
-    fs::path modelPath = parentDir / "Resources" / "models" / "grindstone" / "scene.gltf";
-    std::cout << "Path = " << modelPath << std::endl;
+    fs::path modelPath = parentDir / "Resources" / "models" / "trees" / "scene.gltf";
 
-    Model model(modelPath.string().c_str());
+    Model trees(modelPath.string().c_str());
+
+    fs::path modelPath2 = parentDir / "Resources" / "models" / "ground" / "scene.gltf";
+    Model ground(modelPath2.string().c_str());
 
     //main loop 
     while(!glfwWindowShouldClose(window)){
         //take care of all glfw events
         glfwPollEvents();
 
-        glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
+        glClearColor(0.85f, 0.85f, 0.90f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         camera.Inputs(window);
@@ -77,8 +77,9 @@ int main(){
         shader.setVec4("lightColor", lightColor);
         shader.setVec3("lightPos", lightPos);
         
-        model.Draw(shader, camera);
-        
+        trees.Draw(shader, camera);
+        ground.Draw(shader, camera);
+
         //swap back buffer with the front buffer
         glfwSwapBuffers(window);
     }

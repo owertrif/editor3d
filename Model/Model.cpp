@@ -83,7 +83,7 @@ std::vector<GLuint> Model::getIndices(json accessor) {
 	else if (componentType == 5123) {
 		for (unsigned int i = beginningOfData; i < beginningOfData + count * 2; i+=2) {
 			unsigned char bytes[] = { data[i],data[i+1]};
-			unsigned int value;
+			unsigned short value;
 			std::memcpy(&value, bytes, sizeof(unsigned short));
 			indices.push_back((GLuint)value);
 		}
@@ -91,7 +91,7 @@ std::vector<GLuint> Model::getIndices(json accessor) {
 	else if (componentType == 5122) {
 		for (unsigned int i = beginningOfData; i < beginningOfData + count * 2; i+=2) {
 			unsigned char bytes[] = { data[i],data[i+1] };
-			unsigned int value;
+			short value;
 			std::memcpy(&value, bytes, sizeof(short));
 			indices.push_back((GLuint)value);
 		}
@@ -120,13 +120,13 @@ std::vector<Texture> Model::getTextures()
 		}
 
 		if (!skip) {
-			if (texPath.find("baseColor") != std::string::npos) {
+			if (texPath.find("baseColor") != std::string::npos || texPath.find("diffuse") != std::string::npos) {
 				Texture diffuse = Texture((fileDirectory + texPath).c_str(), "diffuse", loadedTex.size());
 				textures.push_back(diffuse);
 				loadedTex.push_back(diffuse);
 				loadedTexName.push_back(texPath);
 			}
-			else if (texPath.find("metallicRoughness") != std::string::npos) {
+			else if (texPath.find("metallicRoughness") != std::string::npos || texPath.find("specular") != std::string::npos) {
 				Texture specular = Texture((fileDirectory + texPath).c_str(), "specular", loadedTex.size());
 				textures.push_back(specular);
 				loadedTex.push_back(specular);
@@ -263,4 +263,9 @@ void Model::traverseNode(unsigned int nextNode, glm::mat4 matrix)
 		for (unsigned int i = 0; i < node["children"].size(); i++)
 			traverseNode(node["children"][i], matNextNode);
 	}
+
+	std::cout << "NODE " << nextNode
+		<< " T: " << translation.x << "," << translation.y << "," << translation.z
+		<< " S: " << scale.x << "," << scale.y << "," << scale.z
+		<< std::endl;
 }
