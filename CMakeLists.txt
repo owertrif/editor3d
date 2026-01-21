@@ -65,27 +65,42 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${OPENGL_LIBRARIES}
 )
 
+file(COPY
+    ${CMAKE_SOURCE_DIR}/shader_files
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 configure_file(
-    ${CMAKE_SOURCE_DIR}/vertex.vs
-    ${CMAKE_CURRENT_BINARY_DIR}/vertex.vs
+    ${CMAKE_SOURCE_DIR}/shader_files/vertex.vs
+    ${CMAKE_CURRENT_BINARY_DIR}shader_files/vertex.vs
     COPYONLY
 )
 
 configure_file(
-    ${CMAKE_SOURCE_DIR}/outliner_vertex.vs
-    ${CMAKE_CURRENT_BINARY_DIR}/outliner_vertex.vs
+    ${CMAKE_SOURCE_DIR}/shader_files/outliner_vertex.vs
+    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/outliner_vertex.vs
     COPYONLY
 )
 
 configure_file(
-    ${CMAKE_SOURCE_DIR}/fragment.fs
-    ${CMAKE_CURRENT_BINARY_DIR}/fragment.fs
+    ${CMAKE_SOURCE_DIR}/shader_files/fragment.fs
+    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/fragment.fs
     COPYONLY
 )
 
 configure_file(
-    ${CMAKE_SOURCE_DIR}/outliner_fragment.fs
-    ${CMAKE_CURRENT_BINARY_DIR}/outliner_fragment.fs
+    ${CMAKE_SOURCE_DIR}/shader_files/outliner_fragment.fs
+    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/outliner_fragment.fs
+    COPYONLY
+)
+configure_file(
+    ${CMAKE_SOURCE_DIR}/shader_files/grass.fs
+    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/grass.fs
+    COPYONLY
+)
+configure_file(
+    ${CMAKE_SOURCE_DIR}/shader_files/windows.fs
+    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/windows.fs
     COPYONLY
 )
 
@@ -93,3 +108,5 @@ file(COPY
     ${CMAKE_SOURCE_DIR}/Resources
     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
 )
+
+
