@@ -43,13 +43,19 @@ int main(){
     glViewport(0,0,W_WIDTH,W_HEIGHT);
 
     glEnable(GL_DEPTH_TEST);
+    //For faceculling (optimization)
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
+    glFrontFace(GL_CCW);
+
+    //For outlining
     glEnable(GL_STENCIL_TEST);
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
 
 
     Shader shader("vertex.vs","fragment.fs");
-    Shader outliner_shader("outliner_vertex.vs", "outliner_fragment.fs");
+    //Shader outliner_shader("outliner_vertex.vs", "outliner_fragment.fs");
 
 
     Camera camera(W_WIDTH, W_HEIGHT, glm::vec3(0.0f, 2.0f, 20.0f));
@@ -66,10 +72,29 @@ int main(){
 
     model.Move(glm::vec3(-20.0f, 0.0f, 0.0f));
 
+    double prevTime = 0.0f;
+    double currTime = 0.0f;
+    double timeDiff;
+    unsigned int counter = 0;
+
+    glfwSwapInterval(0);
     //main loop 
     while(!glfwWindowShouldClose(window)){
         //take care of all glfw events
         glfwPollEvents();
+
+        currTime = glfwGetTime();
+        timeDiff = currTime - prevTime;
+        counter++;
+
+        if (timeDiff >= 1.0f / 30.f) {
+            std::string FPS = std::to_string((1.0 / timeDiff) * counter);
+            std::string ms = std::to_string((timeDiff / counter) * 1000);
+            std::string newTitle = "3d editor or pehapse 3d viewer - " + FPS + " FPS / " + ms + " ms";
+            glfwSetWindowTitle(window, newTitle.c_str());
+            prevTime = currTime;
+            counter = 0;
+        }
 
         glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -82,21 +107,22 @@ int main(){
         shader.setVec3("lightPos", lightPos);
 
         //
-        glStencilFunc(GL_ALWAYS, 1, 0xFF);
-        glStencilMask(0xFF);
+        //glStencilFunc(GL_ALWAYS, 1, 0xFF);
+        //glStencilMask(0xFF);
         model.Draw(shader, camera);
 
-        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-        glStencilMask(0x00);
-        glDisable(GL_DEPTH_TEST);
+        //glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+        //glStencilMask(0x00);
+        //glDisable(GL_DEPTH_TEST);
 
-        outliner_shader.use();
-        outliner_shader.setFloat("outlining", 0.08f);
-        model.Draw(outliner_shader, camera);
-
-        glStencilMask(0xFF);
-        glStencilFunc(GL_ALWAYS, 0, 0xFF);
-        glEnable(GL_DEPTH_TEST);
+        //outliner_shader.use();
+        //outliner_shader.setFloat("outlining", 0.08f);
+        //model.Draw(outliner_shader, camera);
+        
+        //outlining
+        //glStencilMask(0xFF);
+        //glStencilFunc(GL_ALWAYS, 0, 0xFF);
+        //glEnable(GL_DEPTH_TEST);
 
         //swap back buffer with the front buffer
         glfwSwapBuffers(window);
