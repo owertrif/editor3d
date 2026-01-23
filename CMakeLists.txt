@@ -103,6 +103,11 @@ configure_file(
     ${CMAKE_CURRENT_BINARY_DIR}/shader_files/windows.fs
     COPYONLY
 )
+configure_file(
+    ${CMAKE_SOURCE_DIR}/shader_files/framebuffer.fs
+    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/framebuffer.fs
+    COPYONLY
+)
 
 file(COPY
     ${CMAKE_SOURCE_DIR}/Resources

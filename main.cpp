@@ -14,17 +14,18 @@ namespace fs = std::filesystem;
 #define W_HEIGHT 768
 #define W_WIDTH  1360
 
-const unsigned int numWindows = 100;
-unsigned int orderDraw[numWindows];
-glm::vec3 positionsWindows[numWindows];
-float rotationsWindows[numWindows];
+//for framebuffer whatch
+float rectangleVertices[] =
+{
+    // Coords    // texCoords
+     1.0f, -1.0f,  1.0f, 0.0f,
+    -1.0f, -1.0f,  0.0f, 0.0f,
+    -1.0f,  1.0f,  0.0f, 1.0f,
 
-float distanceCamera[numWindows];
-
-int compare(const void* a, const void* b) {
-    double diff = distanceCamera[*(int*)b] - distanceCamera[*(int*)a];
-    return (0 < diff) - (diff < 0);
-}
+     1.0f,  1.0f,  1.0f, 1.0f,
+     1.0f, -1.0f,  1.0f, 0.0f,
+    -1.0f,  1.0f,  0.0f, 1.0f
+};
 
 int main(){
     //GLFW window init begin
@@ -60,18 +61,16 @@ int main(){
     glCullFace(GL_FRONT);
     glFrontFace(GL_CCW);
 
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     //For outlining
-    glEnable(GL_STENCIL_TEST);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    //glEnable(GL_STENCIL_TEST);
+    //glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
 
 
     Shader shader("shader_files/vertex.vs","shader_files/fragment.fs");
-    Shader shader_grass("shader_files/vertex.vs","shader_files/grass.fs");
-    Shader shader_windows("shader_files/vertex.vs","shader_files/windows.fs");
-    //Shader outliner_shader("outliner_vertex.vs", "outliner_fragment.fs");
+    Shader framebuffer_shader("shader_files/framebuffer.vs", "shader_files/framebuffer.fs");
 
     Camera camera(W_WIDTH, W_HEIGHT, glm::vec3(0.0f, 2.0f, 20.0f));
 
@@ -84,22 +83,13 @@ int main(){
     shader.setVec4("lightColor", lightColor);
     shader.setVec3("lightPos", lightPos);
 
-    shader_grass.use();
-    shader_grass.setVec4("lightColor", lightColor);
-    shader_grass.setVec3("lightPos", lightPos);
-
-    shader_windows.use();
-    shader_windows.setVec4("lightColor", lightColor);
-    shader_windows.setVec3("lightPos", lightPos);
+    framebuffer_shader.use();
+    framebuffer_shader.setInt("screenTexture", 0);
 
     fs::path parentDir = fs::current_path();
-    fs::path modelPath = parentDir / "Resources" / "models" / "ground" / "scene.gltf";
-    fs::path modelPath2 = parentDir / "Resources" / "models" / "grass" / "scene.gltf";
-    fs::path modelPath3 = parentDir / "Resources" / "models" / "windows" / "scene.gltf";
+    fs::path modelPath = parentDir / "Resources" / "models" / "crow" / "scene.gltf";
 
     Model model(modelPath.string().c_str());
-    Model model2(modelPath2.string().c_str());
-    Model model3(modelPath3.string().c_str());
 
     double prevTime = 0.0f;
     double currTime = 0.0f;
@@ -108,17 +98,42 @@ int main(){
     double FPS = 0.0f;
 
     //Vsync off/on
-    glfwSwapInterval(0);
+   //glfwSwapInterval(0);
 
-    for (unsigned int i = 0; i < numWindows; i++) {
-        positionsWindows[i] = glm::vec3(
-            -15.f + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / (15.f - (-15.f)))),
-            1.f + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / (4.f - 1.f))),
-            -15.f + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / (15.f - (-15.f))))
-        );
-        rotationsWindows[i] = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / 1.f));
-        orderDraw[i] = i;
-    }
+    unsigned int rectVAO, rectVBO;
+    glGenVertexArrays(1, &rectVAO);
+    glGenBuffers(1, &rectVBO);
+    glBindVertexArray(rectVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, rectVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(rectangleVertices), &rectangleVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)(2 * sizeof(float)));
+
+    unsigned int FBO;
+    glGenFramebuffers(1, &FBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+
+    unsigned int framebufferTexture;
+    glGenTextures(1, &framebufferTexture);
+    glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, W_WIDTH, W_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferTexture, 0);
+
+    unsigned int RBO;
+    glGenRenderbuffers(1, &RBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, RBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, W_WIDTH, W_HEIGHT);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
+
+    auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "Framebuffer incomplete: " << fboStatus << std::endl;
     
     //main loop 
     while(!glfwWindowShouldClose(window)){
@@ -139,38 +154,30 @@ int main(){
             camera.Inputs(window);
         }
 
-        glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 
+        glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
         
         camera.updateMatrix(90.0f, 0.1f, 100.f);
 
         model.Draw(shader, camera);
+        
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        framebuffer_shader.use();
+        glBindVertexArray(rectVAO);
+        glDisable(GL_DEPTH_TEST);
+        glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        glDisable(GL_CULL_FACE);
-        model2.Draw(shader_grass, camera);
-        glEnable(GL_BLEND);
-
-        for (unsigned int i = 0; i < numWindows; i++) {
-            distanceCamera[i] = glm::length(camera.Position - positionsWindows[i]);
-        }
-
-        qsort(orderDraw, numWindows, sizeof(unsigned int), compare);
-
-        for (unsigned int i = 0; i < numWindows; i++) {
-            model3.Draw(shader_windows, camera, positionsWindows[orderDraw[i]], glm::quat(1.0f, 0.0f, rotationsWindows[orderDraw[i]], 0.0f));
-        }
-        glEnable(GL_CULL_FACE);
-        glDisable(GL_BLEND);
         //swap back buffer with the front buffer
         glfwSwapBuffers(window);
     }
 
     shader.~Shader();
-    shader_grass.~Shader();
     glfwDestroyWindow(window);
     glfwTerminate();
 
     return 0;
 }
-
