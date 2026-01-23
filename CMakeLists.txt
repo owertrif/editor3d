@@ -82,6 +82,24 @@ configure_file(
     COPYONLY
 )
 
+configure_file(
+    ${CMAKE_SOURCE_DIR}/shader_files/normals.fs
+    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/normals.fs
+    COPYONLY
+)
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/shader_files/geometry.gs
+    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/geometry.gs
+    COPYONLY
+)
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/shader_files/normals.gs
+    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/normals.gs
+    COPYONLY
+)
+
 file(COPY
     ${CMAKE_SOURCE_DIR}/Resources
     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
