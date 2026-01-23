@@ -77,35 +77,8 @@ configure_file(
 )
 
 configure_file(
-    ${CMAKE_SOURCE_DIR}/shader_files/outliner_vertex.vs
-    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/outliner_vertex.vs
-    COPYONLY
-)
-
-configure_file(
     ${CMAKE_SOURCE_DIR}/shader_files/fragment.fs
     ${CMAKE_CURRENT_BINARY_DIR}/shader_files/fragment.fs
-    COPYONLY
-)
-
-configure_file(
-    ${CMAKE_SOURCE_DIR}/shader_files/outliner_fragment.fs
-    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/outliner_fragment.fs
-    COPYONLY
-)
-configure_file(
-    ${CMAKE_SOURCE_DIR}/shader_files/grass.fs
-    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/grass.fs
-    COPYONLY
-)
-configure_file(
-    ${CMAKE_SOURCE_DIR}/shader_files/windows.fs
-    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/windows.fs
-    COPYONLY
-)
-configure_file(
-    ${CMAKE_SOURCE_DIR}/shader_files/framebuffer.fs
-    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/framebuffer.fs
     COPYONLY
 )
 

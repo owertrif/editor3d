@@ -14,17 +14,39 @@ namespace fs = std::filesystem;
 #define W_HEIGHT 768
 #define W_WIDTH  1360
 
-//for framebuffer whatch
-float rectangleVertices[] =
+float skyboxVertices[] =
 {
-    // Coords    // texCoords
-     1.0f, -1.0f,  1.0f, 0.0f,
-    -1.0f, -1.0f,  0.0f, 0.0f,
-    -1.0f,  1.0f,  0.0f, 1.0f,
+    //   Coordinates
+    -1.0f, -1.0f,  1.0f,//        7--------6
+     1.0f, -1.0f,  1.0f,//       /|       /|
+     1.0f, -1.0f, -1.0f,//      4--------5 |
+    -1.0f, -1.0f, -1.0f,//      | |      | |
+    -1.0f,  1.0f,  1.0f,//      | 3------|-2
+     1.0f,  1.0f,  1.0f,//      |/       |/
+     1.0f,  1.0f, -1.0f,//      0--------1
+    -1.0f,  1.0f, -1.0f
+};
 
-     1.0f,  1.0f,  1.0f, 1.0f,
-     1.0f, -1.0f,  1.0f, 0.0f,
-    -1.0f,  1.0f,  0.0f, 1.0f
+unsigned int skyboxIndices[] =
+{
+    // Right
+    1, 2, 6,
+    6, 5, 1,
+    // Left
+    0, 4, 7,
+    7, 3, 0,
+    // Top
+    4, 5, 6,
+    6, 7, 4,
+    // Bottom
+    0, 3, 2,
+    2, 1, 0,
+    // Back
+    0, 1, 5,
+    5, 4, 0,
+    // Front
+    3, 7, 6,
+    6, 2, 3
 };
 
 int main(){
@@ -70,7 +92,7 @@ int main(){
 
 
     Shader shader("shader_files/vertex.vs","shader_files/fragment.fs");
-    Shader framebuffer_shader("shader_files/framebuffer.vs", "shader_files/framebuffer.fs");
+    Shader skybox_shader("shader_files/skybox.vs", "shader_files/skybox.fs");
 
     Camera camera(W_WIDTH, W_HEIGHT, glm::vec3(0.0f, 2.0f, 20.0f));
 
@@ -82,9 +104,8 @@ int main(){
     shader.use();
     shader.setVec4("lightColor", lightColor);
     shader.setVec3("lightPos", lightPos);
-
-    framebuffer_shader.use();
-    framebuffer_shader.setInt("screenTexture", 0);
+    skybox_shader.use();
+    skybox_shader.setInt("skyboxTexture", 0);
 
     fs::path parentDir = fs::current_path();
     fs::path modelPath = parentDir / "Resources" / "models" / "crow" / "scene.gltf";
@@ -98,43 +119,55 @@ int main(){
     double FPS = 0.0f;
 
     //Vsync off/on
-   //glfwSwapInterval(0);
-
-    unsigned int rectVAO, rectVBO;
-    glGenVertexArrays(1, &rectVAO);
-    glGenBuffers(1, &rectVBO);
-    glBindVertexArray(rectVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, rectVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(rectangleVertices), &rectangleVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)(2 * sizeof(float)));
-
-    unsigned int FBO;
-    glGenFramebuffers(1, &FBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-
-    unsigned int framebufferTexture;
-    glGenTextures(1, &framebufferTexture);
-    glBindTexture(GL_TEXTURE_2D, framebufferTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, W_WIDTH, W_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferTexture, 0);
-
-    unsigned int RBO;
-    glGenRenderbuffers(1, &RBO);
-    glBindRenderbuffer(GL_RENDERBUFFER, RBO);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, W_WIDTH, W_HEIGHT);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
-
-    auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
-        std::cout << "Framebuffer incomplete: " << fboStatus << std::endl;
+    glfwSwapInterval(0);
     
+    unsigned int skyboxVAO, skyboxVBO, skyboxEBO;
+    glGenVertexArrays(1, &skyboxVAO);
+    glGenBuffers(1, &skyboxVBO);
+    glGenBuffers(1, &skyboxEBO);
+    glBindVertexArray(skyboxVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, skyboxEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(skyboxIndices), &skyboxIndices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    fs::path facesCubemaps[6] = {
+        parentDir / "Resources" / "models" / "skybox" / "right.jpg",
+        parentDir / "Resources" / "models" / "skybox" / "left.jpg",
+        parentDir / "Resources" / "models" / "skybox" / "top.jpg",
+        parentDir / "Resources" / "models" / "skybox" / "bottom.jpg",
+        parentDir / "Resources" / "models" / "skybox" / "front.jpg",
+        parentDir / "Resources" / "models" / "skybox" / "back.jpg"
+    };
+
+    unsigned int skyboxTexture;
+    glGenTextures(1, &skyboxTexture);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R,GL_CLAMP_TO_EDGE);
+
+    for (unsigned int i = 0; i < 6; i++) {
+        int width, height, nrChannels;
+        unsigned char* data = stbi_load(facesCubemaps[i].string().c_str(), &width, &height, &nrChannels, 0);
+        if (data) {
+            stbi_set_flip_vertically_on_load(false);
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+            stbi_image_free(data);
+        }
+        else {
+            std::cout << "Failed to load texture: " << facesCubemaps[i].string() << std::endl;
+            stbi_image_free(data);
+        }
+    }
+
     //main loop 
     while(!glfwWindowShouldClose(window)){
         //take care of all glfw events
@@ -154,7 +187,6 @@ int main(){
             camera.Inputs(window);
         }
 
-        glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 
         glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -163,13 +195,24 @@ int main(){
         camera.updateMatrix(90.0f, 0.1f, 100.f);
 
         model.Draw(shader, camera);
-        
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        framebuffer_shader.use();
-        glBindVertexArray(rectVAO);
-        glDisable(GL_DEPTH_TEST);
-        glBindTexture(GL_TEXTURE_2D, framebufferTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glDepthFunc(GL_LEQUAL);
+        skybox_shader.use();
+        glm::mat4 view = glm::mat4(1.0f);
+        glm::mat4 projection = glm::mat4(1.0f);
+
+        view = glm::mat4(glm::mat3(glm::lookAt(camera.Position, camera.Position + camera.Orientation, camera.Up)));
+        projection = glm::perspective(glm::radians(90.0f), static_cast<float>(W_WIDTH) / static_cast<float>(W_HEIGHT), 0.1f, 100.0f);
+        skybox_shader.setMat4("view", view);
+        skybox_shader.setMat4("projection", projection);
+
+        glBindVertexArray(skyboxVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture);
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+
+        glDepthFunc(GL_LESS);
 
         //swap back buffer with the front buffer
         glfwSwapBuffers(window);
