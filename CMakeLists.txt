@@ -82,6 +82,11 @@ configure_file(
     ${CMAKE_CURRENT_BINARY_DIR}shader_files/skybox.vs
     COPYONLY
 )
+configure_file(
+    ${CMAKE_SOURCE_DIR}/shader_files/asteroid.vs
+    ${CMAKE_CURRENT_BINARY_DIR}shader_files/asteroid.vs
+    COPYONLY
+)
 
 configure_file(
     ${CMAKE_SOURCE_DIR}/shader_files/fragment.fs

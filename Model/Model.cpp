@@ -1,11 +1,13 @@
 #include<Model.h>
 
-Model::Model(const char* file) {
+Model::Model(const char* file, unsigned int instancing, std::vector<glm::mat4> instanceMatrix) {
 	std::string text = get_file_contents(file);
 	
 	JSON = json::parse(text);
 
 	Model::file = file;
+	this->instancing = instancing;
+	this->instanceMatrix = instanceMatrix;
 	data = getData();
 
 	traverseNode(0);
@@ -13,8 +15,8 @@ Model::Model(const char* file) {
 
 void Model::Draw(Shader& shader_program, Camera& camera, glm::vec3 translation, glm::quat rotation, glm::vec3 scale) {
 	for (unsigned int i = 0; i < meshes.size(); i++) {
-		rotationMeshes[i] = rotation;
-		meshes[i].Mesh::Draw(shader_program, camera, matricesMeshes[i], translationsMeshes[i] + translation, rotationMeshes[i], scaleMeshes[i] * scale);
+		glm::quat final_rotation = rotationMeshes[i] * rotation;
+		meshes[i].Mesh::Draw(shader_program, camera, matricesMeshes[i], translationsMeshes[i] + translation, final_rotation, scaleMeshes[i] * scale);
 	}
 }
 
@@ -27,7 +29,7 @@ void Model::Move(glm::vec3 translation) {
 	}
 }
 
-void Model::Rotate(const glm::vec3& axis, float angle) {
+void Model::Rotate(const glm::vec3& axis, float angle) {	
 	float andleRad = glm::radians(angle);
 	auto axisNorm = glm::normalize(axis);
 
@@ -39,7 +41,7 @@ void Model::Rotate(const glm::vec3& axis, float angle) {
 
 	for (auto& rt : rotationMeshes) {
 		
-		rt = glm::normalize(rot_quat);
+		rt *= glm::normalize(rot_quat);
 	}
 }
 
@@ -230,7 +232,7 @@ void Model::loadMeshes(unsigned int indMeshes) {
 	std::vector<GLuint> indices = getIndices(JSON["accessors"][indAccInd]);
 	std::vector<Texture> textures = getTextures();
 
-	meshes.push_back(Mesh(vertices, indices, textures));
+	meshes.push_back(Mesh(vertices, indices, textures, instancing, instanceMatrix));
 
 }
 

@@ -13,17 +13,17 @@ namespace fs = std::filesystem;
 #define W_HEIGHT 768
 #define W_WIDTH  1360
 
-const float skyboxVertices[] =
+std::vector<Vertex> skyboxVertices =
 {
     //   Coordinates
-    -1.0f, -1.0f,  1.0f,//        7--------6
-     1.0f, -1.0f,  1.0f,//       /|       /|
-     1.0f, -1.0f, -1.0f,//      4--------5 |
-    -1.0f, -1.0f, -1.0f,//      | |      | |
-    -1.0f,  1.0f,  1.0f,//      | 3------|-2
-     1.0f,  1.0f,  1.0f,//      |/       |/
-     1.0f,  1.0f, -1.0f,//      0--------1
-    -1.0f,  1.0f, -1.0f
+    Vertex(glm::vec3(-1.0f, -1.0f, 1.0f)) ,//        7--------6
+    Vertex(glm::vec3(1.0f, -1.0f, 1.0f))  ,//       /|       /|
+    Vertex(glm::vec3(1.0f, -1.0f, -1.0f)) ,//      4--------5 |
+    Vertex(glm::vec3(-1.0f, -1.0f, -1.0f)),//      | |      | |
+    Vertex(glm::vec3(-1.0f,  1.0f,  1.0f)),//      | 3------|-2
+    Vertex(glm::vec3(1.0f,  1.0f,  1.0f)) ,//      |/       |/
+    Vertex(glm::vec3(1.0f,  1.0f, -1.0f)) ,//      0--------1
+    Vertex(glm::vec3(-1.0f,  1.0f, -1.0f))
 };
 
 std::vector<GLuint> skyboxIndices =
@@ -47,6 +47,11 @@ std::vector<GLuint> skyboxIndices =
     3, 7, 6,
     6, 2, 3
 };
+
+float randf()
+{
+    return -1.0f + (rand() / (RAND_MAX / 2.0f));
+}
 
 int main(){
     //GLFW window init begin
@@ -92,6 +97,7 @@ int main(){
 
     Shader shader("shader_files/vertex.vs","shader_files/fragment.fs", "shader_files/geometry.gs");
     Shader skybox_shader("shader_files/skybox.vs", "shader_files/skybox.fs");
+    Shader asteroid_shader("shader_files/asteroid.vs", "shader_files/fragment.fs");
 
     Camera camera(W_WIDTH, W_HEIGHT, glm::vec3(0.0f, 2.0f, 20.0f));
 
@@ -105,24 +111,15 @@ int main(){
     shader.setVec3("lightPos", lightPos);
     skybox_shader.use();
     skybox_shader.setInt("skyboxTexture", 0);
+    asteroid_shader.use();
+    asteroid_shader.setVec4("lightColor", lightColor);
+    asteroid_shader.setVec3("lightPos", lightPos);
 
     fs::path parentDir = fs::current_path();
-    fs::path modelPath = parentDir / "Resources" / "models" / "crow" / "scene.gltf";
+    fs::path modelPath_jupiter = parentDir / "Resources" / "models" / "jupiter" / "scene.gltf";
+    fs::path modelPath_asteroid = parentDir / "Resources" / "models" / "asteroid" / "scene.gltf";
 
-    Model model(modelPath.string().c_str());
-
-    double prevTime = 0.0f;
-    double currTime = 0.0f;
-    double timeDiff;
-    unsigned int counter = 0;
-    double FPS = 0.0f;
-
-    //Vsync off/on
-    glfwSwapInterval(0);
-
-    std::vector<Vertex> skyboxVerts;
-    for (unsigned int i = 0; i + 2 < sizeof(skyboxVertices) / sizeof(float); i += 3)
-        skyboxVerts.push_back(Vertex(glm::vec3(skyboxVertices[i], skyboxVertices[i + 1], skyboxVertices[i + 2])));
+    Model model_jupiter(modelPath_jupiter.string().c_str());
 
     fs::path facesCubemap[6] =
     {
@@ -134,7 +131,59 @@ int main(){
         parentDir / "Resources" / "models" / "skybox" / "back.png"
     };
 
-    Skybox space(skyboxVerts, skyboxIndices, facesCubemap);
+    Skybox space(skyboxVertices, skyboxIndices, facesCubemap);
+
+    double prevTime = 0.0f;
+    double lastframe = 0.0f;
+    double currTime = 0.0f;
+    double timeDiff;
+    double deltaTime;
+    unsigned int counter = 0;
+    double FPS = 0.0f;
+
+    //Vsync off/on
+    glfwSwapInterval(0);
+
+    const unsigned int number = 25000;
+    // Radius of circle around which asteroids orbit
+    float radius = 100.0f;
+    // How much ateroids deviate from the radius
+    float radiusDeviation = 25.0f;
+
+    std::vector<glm::mat4> instanceMatrix;
+    std::vector<float> distance;
+    for (unsigned int i = 0; i < number; i++) {
+        float x = randf();
+        float finalRadius = radius + randf() * radiusDeviation;
+        float y = ((rand() % 2) * 2 - 1) * sqrt(1.0f - x * x);
+
+        glm::vec3 tempTranslation;
+        glm::quat tempRotation;
+        glm::vec3 tempScale;
+        if (randf() > 0.5f) {
+            tempTranslation = glm::vec3(y * finalRadius, randf(), x * finalRadius);
+        }
+        else {
+            tempTranslation = glm::vec3(x * finalRadius, randf(), y * finalRadius);
+        }
+
+        tempRotation = glm::quat(1.0f, randf(), randf(), randf());
+        // Generates random scales
+        tempScale = 0.1f * glm::vec3(randf(), randf(), randf());
+
+        glm::mat4 trans = glm::mat4(1.0f);
+        glm::mat4 rot = glm::mat4(1.0f);
+        glm::mat4 sca = glm::mat4(1.0f);
+
+        trans = glm::translate(trans, tempTranslation);
+        rot = glm::mat4_cast(tempRotation);
+        sca = glm::scale(sca, tempScale);
+
+        instanceMatrix.push_back(trans * rot * sca);
+    }
+
+
+    Model model_asteroid(modelPath_asteroid.string().c_str(), number, instanceMatrix);
 
     //main loop 
     while(!glfwWindowShouldClose(window)){
@@ -143,6 +192,8 @@ int main(){
 
         currTime = glfwGetTime();
         timeDiff = currTime - prevTime;
+        deltaTime = currTime - lastframe;
+        lastframe = currTime;
         counter++;
 
         if (timeDiff >= 1.0f / 165.f) {
@@ -160,9 +211,14 @@ int main(){
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
         
-        camera.updateMatrix(90.0f, 0.1f, 100.f);
+        camera.updateMatrix(90.0f, 0.1f, 500.f);
 
-        model.Draw(shader, camera);
+        model_jupiter.Rotate(glm::vec3(0.0f, 1.0f, 0.0f), 10.0f * deltaTime);
+        model_jupiter.Draw(shader, camera);
+        
+        model_asteroid.Rotate(glm::vec3(0.0f, 1.0f, 0.0f), 2.5f * 10.0f * deltaTime);
+        model_asteroid.Draw(asteroid_shader, camera);
+
         glDepthFunc(GL_LEQUAL);
         space.Draw(skybox_shader, camera);
         glDepthFunc(GL_LESS);

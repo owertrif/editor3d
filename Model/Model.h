@@ -9,7 +9,7 @@ using json = nlohmann::json;
 class Model{
 
 public:
-    Model(const char* file);
+    Model(const char* file, unsigned int instancing = 1, std::vector<glm::mat4> instanceMatrix = {});
 
     void Draw(Shader& shader_programm,Camera& camera, 
         glm::vec3 translation = glm::vec3(0.0f, 0.0f, 0.0f),
@@ -19,6 +19,9 @@ public:
     void Move(glm::vec3 translation);
     void Scale(glm::vec3 scale);
     void Rotate(const glm::vec3& axis, float angle);
+
+    unsigned int instancing;
+    std::vector<glm::mat4> instanceMatrix;
 
 private:
     const char* file;
