@@ -13,8 +13,10 @@ namespace fs = std::filesystem;
 class Skybox {
 public:
 	void Draw(Shader& shader, Camera& camera);
-	Skybox(std::vector<Vertex>& skyboxVertices, std::vector<GLuint>& skyboxIndices, const fs::path faceCubemap[]);
+	Skybox(const fs::path faceCubemap[]);
 private:
+    std::vector<Vertex> skyboxVertices;
+    std::vector<GLuint> skyboxIndices;
 	unsigned int skyboxTexture;
 	VAO skyboxVAO;
 };

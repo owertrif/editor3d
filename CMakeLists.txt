@@ -16,6 +16,7 @@ set(SOURCES
     Buffers/VBO.cpp
     Buffers/EBO.cpp
     Buffers/VAO.cpp
+    Buffers/FBO.cpp
     std_img/stb_image_implementation.cpp
     Textures/texture.cpp
     Camera/Camera.cpp
@@ -57,7 +58,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 
 #---EXECUTABLE---
-add_executable(${PROJECT_NAME} ${SOURCES} "Mesh/SkyBox/Skybox.h")
+add_executable(${PROJECT_NAME} ${SOURCES})
 
 #---link libs---
 target_link_libraries(${PROJECT_NAME} PRIVATE

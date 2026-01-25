@@ -7,51 +7,26 @@ namespace fs = std::filesystem;
 
 #include <Model.h>
 #include <Skybox.h>
+#include <FBO.h>
 
 #include <ctime>
 
 #define W_HEIGHT 768
 #define W_WIDTH  1360
 
-std::vector<Vertex> skyboxVertices =
-{
-    //   Coordinates
-    Vertex(glm::vec3(-1.0f, -1.0f, 1.0f)) ,//        7--------6
-    Vertex(glm::vec3(1.0f, -1.0f, 1.0f))  ,//       /|       /|
-    Vertex(glm::vec3(1.0f, -1.0f, -1.0f)) ,//      4--------5 |
-    Vertex(glm::vec3(-1.0f, -1.0f, -1.0f)),//      | |      | |
-    Vertex(glm::vec3(-1.0f,  1.0f,  1.0f)),//      | 3------|-2
-    Vertex(glm::vec3(1.0f,  1.0f,  1.0f)) ,//      |/       |/
-    Vertex(glm::vec3(1.0f,  1.0f, -1.0f)) ,//      0--------1
-    Vertex(glm::vec3(-1.0f,  1.0f, -1.0f))
-};
+#define SAMPLES 8
 
-std::vector<GLuint> skyboxIndices =
+std::vector<float> rectangleVertices=
 {
-    // Right
-    1, 2, 6,
-    6, 5, 1,
-    // Left
-    0, 4, 7,
-    7, 3, 0,
-    // Top
-    4, 5, 6,
-    6, 7, 4,
-    // Bottom
-    0, 3, 2,
-    2, 1, 0,
-    // Back
-    0, 1, 5,
-    5, 4, 0,
-    // Front
-    3, 7, 6,
-    6, 2, 3
-};
+    // Coords    // texCoords
+     1.0f, -1.0f,  1.0f, 0.0f,
+    -1.0f, -1.0f,  0.0f, 0.0f,
+    -1.0f,  1.0f,  0.0f, 1.0f,
 
-float randf()
-{
-    return -1.0f + (rand() / (RAND_MAX / 2.0f));
-}
+     1.0f,  1.0f,  1.0f, 1.0f,
+     1.0f, -1.0f,  1.0f, 0.0f,
+    -1.0f,  1.0f,  0.0f, 1.0f
+};
 
 int main(){
     //GLFW window init begin
@@ -60,6 +35,7 @@ int main(){
     //Telling that we are using opengl 3.3 (opengl (Major).(minor))
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    //glfwWindowHint(GLFW_SAMPLES, SAMPLES);
     //Telling that we are using core profile
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
@@ -82,10 +58,13 @@ int main(){
     glViewport(0,0,W_WIDTH,W_HEIGHT);
 
     glEnable(GL_DEPTH_TEST);
+    
+    glEnable(GL_MULTISAMPLE);
     //For faceculling (optimization)
     glEnable(GL_CULL_FACE);
     glCullFace(GL_FRONT);
     glFrontFace(GL_CCW);
+
 
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -97,7 +76,7 @@ int main(){
 
     Shader shader("shader_files/vertex.vs","shader_files/fragment.fs", "shader_files/geometry.gs");
     Shader skybox_shader("shader_files/skybox.vs", "shader_files/skybox.fs");
-    Shader asteroid_shader("shader_files/asteroid.vs", "shader_files/fragment.fs");
+    Shader framebuffer_shader("shader_files/framebuffer.vs", "shader_files/framebuffer.fs");
 
     Camera camera(W_WIDTH, W_HEIGHT, glm::vec3(0.0f, 2.0f, 20.0f));
 
@@ -111,15 +90,13 @@ int main(){
     shader.setVec3("lightPos", lightPos);
     skybox_shader.use();
     skybox_shader.setInt("skyboxTexture", 0);
-    asteroid_shader.use();
-    asteroid_shader.setVec4("lightColor", lightColor);
-    asteroid_shader.setVec3("lightPos", lightPos);
+    framebuffer_shader.use();
+    framebuffer_shader.setInt("screenTexture", 0);
 
     fs::path parentDir = fs::current_path();
-    fs::path modelPath_jupiter = parentDir / "Resources" / "models" / "jupiter" / "scene.gltf";
-    fs::path modelPath_asteroid = parentDir / "Resources" / "models" / "asteroid" / "scene.gltf";
+    fs::path modelPath = parentDir / "Resources" / "models" / "crow" / "scene.gltf";
 
-    Model model_jupiter(modelPath_jupiter.string().c_str());
+    Model model(modelPath.string().c_str());
 
     fs::path facesCubemap[6] =
     {
@@ -131,7 +108,7 @@ int main(){
         parentDir / "Resources" / "models" / "skybox" / "back.png"
     };
 
-    Skybox space(skyboxVertices, skyboxIndices, facesCubemap);
+    Skybox skyBox(facesCubemap);
 
     double prevTime = 0.0f;
     double lastframe = 0.0f;
@@ -143,47 +120,57 @@ int main(){
 
     //Vsync off/on
     glfwSwapInterval(0);
+    
+    VAO rectVAO;
+    rectVAO.Bind();
+    VBO rectVBO(rectangleVertices);
+    rectVBO.Bind();
+    rectVAO.LinkAttrib(rectVBO, 0, 2, GL_FLOAT, 4 * sizeof(float), (void*)0);
+    rectVAO.LinkAttrib(rectVBO, 1, 2, GL_FLOAT, 4 * sizeof(float), (void*)(2*sizeof(float)));
+    rectVAO.Unbind();
+    rectVBO.Unbind();
 
-    const unsigned int number = 25000;
-    // Radius of circle around which asteroids orbit
-    float radius = 100.0f;
-    // How much ateroids deviate from the radius
-    float radiusDeviation = 25.0f;
+    FBO rectFBO;
 
-    std::vector<glm::mat4> instanceMatrix;
-    std::vector<float> distance;
-    for (unsigned int i = 0; i < number; i++) {
-        float x = randf();
-        float finalRadius = radius + randf() * radiusDeviation;
-        float y = ((rand() % 2) * 2 - 1) * sqrt(1.0f - x * x);
+    unsigned int framebufferTexture;
+    glGenTextures(1, &framebufferTexture);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebufferTexture);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, SAMPLES, GL_RGB, W_WIDTH, W_HEIGHT, GL_TRUE);
+    glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+    glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, framebufferTexture, 0);
 
-        glm::vec3 tempTranslation;
-        glm::quat tempRotation;
-        glm::vec3 tempScale;
-        if (randf() > 0.5f) {
-            tempTranslation = glm::vec3(y * finalRadius, randf(), x * finalRadius);
-        }
-        else {
-            tempTranslation = glm::vec3(x * finalRadius, randf(), y * finalRadius);
-        }
+    unsigned int RBO;
+    glGenRenderbuffers(1, &RBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, RBO);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, SAMPLES, GL_DEPTH24_STENCIL8, W_WIDTH, W_HEIGHT);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
 
-        tempRotation = glm::quat(1.0f, randf(), randf(), randf());
-        // Generates random scales
-        tempScale = 0.1f * glm::vec3(randf(), randf(), randf());
+    // Error checking framebuffer
+    auto fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "Framebuffer error: " << fboStatus << std::endl;
 
-        glm::mat4 trans = glm::mat4(1.0f);
-        glm::mat4 rot = glm::mat4(1.0f);
-        glm::mat4 sca = glm::mat4(1.0f);
+    // Create Frame Buffer Object
+    FBO postProcessingFBO;
 
-        trans = glm::translate(trans, tempTranslation);
-        rot = glm::mat4_cast(tempRotation);
-        sca = glm::scale(sca, tempScale);
+    // Create Framebuffer Texture
+    unsigned int postProcessingTexture;
+    glGenTextures(1, &postProcessingTexture);
+    glBindTexture(GL_TEXTURE_2D, postProcessingTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, W_WIDTH, W_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, postProcessingTexture, 0);
 
-        instanceMatrix.push_back(trans * rot * sca);
-    }
-
-
-    Model model_asteroid(modelPath_asteroid.string().c_str(), number, instanceMatrix);
+    // Error checking framebuffer
+    fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "Post-Processing Framebuffer error: " << fboStatus << std::endl;
 
     //main loop 
     while(!glfwWindowShouldClose(window)){
@@ -206,22 +193,30 @@ int main(){
             camera.Inputs(window);
         }
 
-
+        rectFBO.Bind();
         glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
         
         camera.updateMatrix(90.0f, 0.1f, 500.f);
 
-        model_jupiter.Rotate(glm::vec3(0.0f, 1.0f, 0.0f), 10.0f * deltaTime);
-        model_jupiter.Draw(shader, camera);
-        
-        model_asteroid.Rotate(glm::vec3(0.0f, 1.0f, 0.0f), 2.5f * 10.0f * deltaTime);
-        model_asteroid.Draw(asteroid_shader, camera);
+        model.Draw(shader, camera);
 
         glDepthFunc(GL_LEQUAL);
-        space.Draw(skybox_shader, camera);
+        skyBox.Draw(skybox_shader, camera);
         glDepthFunc(GL_LESS);
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, rectFBO.ID);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, postProcessingFBO.ID);
+        glBlitFramebuffer(0, 0, W_WIDTH, W_HEIGHT, 0, 0, W_WIDTH, W_HEIGHT, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+        rectFBO.Unbind();
+        
+        framebuffer_shader.use();
+        rectVAO.Bind();
+        glDisable(GL_DEPTH_TEST);
+        glBindTexture(GL_TEXTURE_2D, postProcessingTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
         //swap back buffer with the front buffer
         glfwSwapBuffers(window);
