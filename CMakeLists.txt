@@ -20,6 +20,7 @@ set(SOURCES
     Textures/texture.cpp
     Camera/Camera.cpp
     Mesh/Mesh.cpp
+    Mesh/SkyBox/Skybox.cpp
     Model/Model.cpp
 )
 
@@ -44,6 +45,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/Textures
     ${CMAKE_SOURCE_DIR}/Camera
     ${CMAKE_SOURCE_DIR}/Mesh
+    ${CMAKE_SOURCE_DIR}/Mesh/SkyBox
     ${CMAKE_SOURCE_DIR}/json
     ${CMAKE_SOURCE_DIR}/Model
     
@@ -55,7 +57,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 
 #---EXECUTABLE---
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES} "Mesh/SkyBox/Skybox.h")
 
 #---link libs---
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -75,10 +77,20 @@ configure_file(
     ${CMAKE_CURRENT_BINARY_DIR}shader_files/vertex.vs
     COPYONLY
 )
+configure_file(
+    ${CMAKE_SOURCE_DIR}/shader_files/skybox.vs
+    ${CMAKE_CURRENT_BINARY_DIR}shader_files/skybox.vs
+    COPYONLY
+)
 
 configure_file(
     ${CMAKE_SOURCE_DIR}/shader_files/fragment.fs
     ${CMAKE_CURRENT_BINARY_DIR}/shader_files/fragment.fs
+    COPYONLY
+)
+configure_file(
+    ${CMAKE_SOURCE_DIR}/shader_files/skybox.fs
+    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/skybox.fs
     COPYONLY
 )
 

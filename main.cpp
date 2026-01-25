@@ -3,16 +3,50 @@ namespace fs = std::filesystem;
 
 #include <iostream>
 #include "glad/glad.h"
-#include "glm/glm/glm.hpp"
 #include <GLFW/glfw3.h>
-#include <std_img/stb_image.h>
 
 #include <Model.h>
+#include <Skybox.h>
 
 #include <ctime>
 
 #define W_HEIGHT 768
 #define W_WIDTH  1360
+
+const float skyboxVertices[] =
+{
+    //   Coordinates
+    -1.0f, -1.0f,  1.0f,//        7--------6
+     1.0f, -1.0f,  1.0f,//       /|       /|
+     1.0f, -1.0f, -1.0f,//      4--------5 |
+    -1.0f, -1.0f, -1.0f,//      | |      | |
+    -1.0f,  1.0f,  1.0f,//      | 3------|-2
+     1.0f,  1.0f,  1.0f,//      |/       |/
+     1.0f,  1.0f, -1.0f,//      0--------1
+    -1.0f,  1.0f, -1.0f
+};
+
+std::vector<GLuint> skyboxIndices =
+{
+    // Right
+    1, 2, 6,
+    6, 5, 1,
+    // Left
+    0, 4, 7,
+    7, 3, 0,
+    // Top
+    4, 5, 6,
+    6, 7, 4,
+    // Bottom
+    0, 3, 2,
+    2, 1, 0,
+    // Back
+    0, 1, 5,
+    5, 4, 0,
+    // Front
+    3, 7, 6,
+    6, 2, 3
+};
 
 int main(){
     //GLFW window init begin
@@ -57,6 +91,7 @@ int main(){
 
 
     Shader shader("shader_files/vertex.vs","shader_files/fragment.fs", "shader_files/geometry.gs");
+    Shader skybox_shader("shader_files/skybox.vs", "shader_files/skybox.fs");
 
     Camera camera(W_WIDTH, W_HEIGHT, glm::vec3(0.0f, 2.0f, 20.0f));
 
@@ -68,6 +103,8 @@ int main(){
     shader.use();
     shader.setVec4("lightColor", lightColor);
     shader.setVec3("lightPos", lightPos);
+    skybox_shader.use();
+    skybox_shader.setInt("skyboxTexture", 0);
 
     fs::path parentDir = fs::current_path();
     fs::path modelPath = parentDir / "Resources" / "models" / "crow" / "scene.gltf";
@@ -82,6 +119,22 @@ int main(){
 
     //Vsync off/on
     glfwSwapInterval(0);
+
+    std::vector<Vertex> skyboxVerts;
+    for (unsigned int i = 0; i + 2 < sizeof(skyboxVertices) / sizeof(float); i += 3)
+        skyboxVerts.push_back(Vertex(glm::vec3(skyboxVertices[i], skyboxVertices[i + 1], skyboxVertices[i + 2])));
+
+    fs::path facesCubemap[6] =
+    {
+        parentDir / "Resources" / "models" / "skybox" / "right.png",
+        parentDir / "Resources" / "models" / "skybox" / "left.png",
+        parentDir / "Resources" / "models" / "skybox" / "top.png",
+        parentDir / "Resources" / "models" / "skybox" / "bottom.png",
+        parentDir / "Resources" / "models" / "skybox" / "front.png",
+        parentDir / "Resources" / "models" / "skybox" / "back.png"
+    };
+
+    Skybox space(skyboxVerts, skyboxIndices, facesCubemap);
 
     //main loop 
     while(!glfwWindowShouldClose(window)){
@@ -110,6 +163,9 @@ int main(){
         camera.updateMatrix(90.0f, 0.1f, 100.f);
 
         model.Draw(shader, camera);
+        glDepthFunc(GL_LEQUAL);
+        space.Draw(skybox_shader, camera);
+        glDepthFunc(GL_LESS);
 
         //swap back buffer with the front buffer
         glfwSwapBuffers(window);
