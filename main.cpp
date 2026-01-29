@@ -28,6 +28,36 @@ std::vector<float> rectangleVertices=
     -1.0f,  1.0f,  0.0f, 1.0f
 };
 
+
+GLfloat lightVertices[] =
+{ //     COORDINATES     //
+    -0.1f, -0.1f,  0.1f,
+    -0.1f, -0.1f, -0.1f,
+     0.1f, -0.1f, -0.1f,
+     0.1f, -0.1f,  0.1f,
+    -0.1f,  0.1f,  0.1f,
+    -0.1f,  0.1f, -0.1f,
+     0.1f,  0.1f, -0.1f,
+     0.1f,  0.1f,  0.1f
+};
+
+GLuint lightIndices[] =
+{
+    0, 1, 2,
+    0, 2, 3,
+    0, 4, 7,
+    0, 7, 3,
+    3, 7, 6,
+    3, 6, 2,
+    2, 6, 5,
+    2, 5, 1,
+    1, 5, 4,
+    1, 4, 0,
+    4, 5, 6,
+    4, 6, 7
+};
+
+
 int main(){
     //GLFW window init begin
     glfwInit();
@@ -76,14 +106,16 @@ int main(){
 
     Shader shader("shader_files/vertex.vs","shader_files/fragment.fs", "shader_files/geometry.gs");
     Shader skybox_shader("shader_files/skybox.vs", "shader_files/skybox.fs");
+    Shader light_shader("shader_files/lightvertex.vs", "shader_files/lightfragment.fs");
     Shader framebuffer_shader("shader_files/framebuffer.vs", "shader_files/framebuffer.fs");
 
     Camera camera(W_WIDTH, W_HEIGHT, glm::vec3(0.0f, 2.0f, 20.0f));
 
     glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-    glm::vec3 lightPos = glm::vec3(0.5f, 0.5f, 0.5f);
+    glm::vec3 lightPos = glm::vec3(0.5f, 1.5f, 0.5f);
     glm::mat4 lightModel = glm::mat4(1.0f);
     lightModel = glm::translate(lightModel, lightPos);
+    lightModel = glm::scale(lightModel, glm::vec3(4.0f));
     
     shader.use();
     shader.setVec4("lightColor", lightColor);
@@ -94,7 +126,7 @@ int main(){
     framebuffer_shader.setInt("screenTexture", 0);
 
     fs::path parentDir = fs::current_path();
-    fs::path modelPath = parentDir / "Resources" / "models" / "crow" / "scene.gltf";
+    fs::path modelPath = parentDir / "Resources" / "models" / "sword" / "scene.gltf";
 
     Model model(modelPath.string().c_str());
 
@@ -172,6 +204,22 @@ int main(){
     if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
         std::cout << "Post-Processing Framebuffer error: " << fboStatus << std::endl;
 
+
+    //light
+    VAO lightVAO;
+    lightVAO.Bind();
+    VBO lightVBO(lightVertices, sizeof(lightIndices));
+    EBO lightEBO(lightIndices, sizeof(lightIndices));
+    lightVAO.LinkAttrib(lightVBO, 0, 3, GL_FLOAT, 3 * sizeof(float), (void*)0);
+    lightVAO.Unbind();
+    lightVBO.Unbind();
+    lightEBO.Unbind();
+
+    light_shader.use();
+    light_shader.setMat4("model", lightModel);
+    light_shader.setVec4("lightColor", lightColor);
+
+    model.Scale(glm::vec3(3.0f));
     //main loop 
     while(!glfwWindowShouldClose(window)){
         //take care of all glfw events
@@ -194,7 +242,7 @@ int main(){
         }
 
         rectFBO.Bind();
-        glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
+        glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
         
@@ -202,9 +250,16 @@ int main(){
 
         model.Draw(shader, camera);
 
-        glDepthFunc(GL_LEQUAL);
+        glDisable(GL_CULL_FACE);
+        light_shader.use();
+        light_shader.setMat4("model", lightModel);
+        camera.Matrix(light_shader, "cameraMatrix");
+        lightVAO.Bind();
+        glDrawElements(GL_TRIANGLES, sizeof(lightIndices) / sizeof(int), GL_UNSIGNED_INT, 0);
+        glEnable(GL_CULL_FACE);
+        /*glDepthFunc(GL_LEQUAL);
         skyBox.Draw(skybox_shader, camera);
-        glDepthFunc(GL_LESS);
+        glDepthFunc(GL_LESS);*/
 
         glBindFramebuffer(GL_READ_FRAMEBUFFER, rectFBO.ID);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, postProcessingFBO.ID);
