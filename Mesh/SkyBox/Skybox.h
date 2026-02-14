@@ -14,6 +14,7 @@ class Skybox {
 public:
 	void Draw(Shader& shader, Camera& camera);
 	Skybox(const fs::path faceCubemap[]);
+	std::string Name;
 private:
     std::vector<Vertex> skyboxVertices;
     std::vector<GLuint> skyboxIndices;

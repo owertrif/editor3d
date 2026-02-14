@@ -1,6 +1,6 @@
 #include<Model.h>
 
-Model::Model(const char* file, unsigned int instancing, std::vector<glm::mat4> instanceMatrix) {
+Model::Model(const char* file, std::string Name, unsigned int instancing, std::vector<glm::mat4> instanceMatrix) {
 	std::string text = get_file_contents(file);
 	
 	JSON = json::parse(text);
@@ -9,14 +9,27 @@ Model::Model(const char* file, unsigned int instancing, std::vector<glm::mat4> i
 	this->instancing = instancing;
 	this->instanceMatrix = instanceMatrix;
 	data = getData();
+	this->Name = Name;
+	this->translation = glm::vec3(0.0f, 0.0f, 0.0f);
+	this->rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+	this->scale = glm::vec3(1.0f, 1.0f, 1.0f);
 
 	traverseNode(0);
 }
 
-void Model::Draw(Shader& shader_program, Camera& camera, glm::vec3 translation, glm::quat rotation, glm::vec3 scale) {
+void Model::Draw(Shader& shader_program, Camera& camera) {
 	for (unsigned int i = 0; i < meshes.size(); i++) {
-		glm::quat final_rotation = rotationMeshes[i] * rotation;
-		meshes[i].Mesh::Draw(shader_program, camera, matricesMeshes[i], translationsMeshes[i] + translation, final_rotation, scaleMeshes[i] * scale);
+		this->rot_quat = glm::quat(glm::radians(this->rotation));
+		glm::quat final_rotation = rotationMeshes[i] * this->rot_quat;
+		meshes[i].Mesh::Draw(shader_program, camera, matricesMeshes[i], translationsMeshes[i] + this->translation, final_rotation, scaleMeshes[i] * this->scale);
+	}
+}
+
+void Model::DrawOutlining(Shader& outlining_shader, Camera& camera) {
+	for (unsigned int i = 0; i < meshes.size(); i++) {
+		this->rot_quat = glm::quat(glm::radians(this->rotation));
+		glm::quat final_rotation = rotationMeshes[i] * this->rot_quat;
+		meshes[i].Mesh::Draw(outlining_shader, camera, matricesMeshes[i], translationsMeshes[i] + this->translation, final_rotation, scaleMeshes[i] * this->scale);
 	}
 }
 
@@ -223,6 +236,7 @@ void Model::loadMeshes(unsigned int indMeshes) {
 
 	std::vector<float> posVec = getFloats(JSON["accessors"][posAccInd]);
 	std::vector<glm::vec3> positions = groupFloatVec3(posVec);
+
 	std::vector<float> normalVec = getFloats(JSON["accessors"][normalAccInd]);
 	std::vector<glm::vec3> normals = groupFloatVec3(normalVec);
 	std::vector<float> texVec = getFloats(JSON["accessors"][texAccInd]);

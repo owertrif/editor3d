@@ -11,6 +11,7 @@ set(GLFW_ROOT "C:/vcpkg/installed/x64-windows/share/glfw3")
 set(SOURCES
 	main.cpp
 	glad/glad.c
+
     shader/shader.cpp
     materials/material.cpp
     Buffers/VBO.cpp
@@ -23,6 +24,16 @@ set(SOURCES
     Mesh/Mesh.cpp
     Mesh/SkyBox/Skybox.cpp
     Model/Model.cpp
+    Scene/Scene.cpp
+
+    imgui/imgui.cpp
+    imgui/imgui_demo.cpp
+    imgui/imgui_draw.cpp
+    imgui/imgui_tables.cpp
+    imgui/imgui_widgets.cpp
+    imgui/backends/imgui_impl_opengl3.cpp
+    imgui/backends/imgui_impl_win32.cpp
+    imgui/backends/imgui_impl_glfw.cpp
 )
 
 #---Gen root dir---
@@ -49,6 +60,9 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/Mesh/SkyBox
     ${CMAKE_SOURCE_DIR}/json
     ${CMAKE_SOURCE_DIR}/Model
+    ${CMAKE_SOURCE_DIR}/Scene
+    ${CMAKE_SOURCE_DIR}/imgui
+    ${CMAKE_SOURCE_DIR}/imgui/backends
     
 )
 
@@ -79,6 +93,11 @@ configure_file(
     COPYONLY
 )
 configure_file(
+    ${CMAKE_SOURCE_DIR}/shader_files/outliner_vertex.vs
+    ${CMAKE_CURRENT_BINARY_DIR}shader_files/outliner_vertex.vs
+    COPYONLY
+)
+configure_file(
     ${CMAKE_SOURCE_DIR}/shader_files/skybox.vs
     ${CMAKE_CURRENT_BINARY_DIR}shader_files/skybox.vs
     COPYONLY
@@ -92,6 +111,11 @@ configure_file(
 configure_file(
     ${CMAKE_SOURCE_DIR}/shader_files/fragment.fs
     ${CMAKE_CURRENT_BINARY_DIR}/shader_files/fragment.fs
+    COPYONLY
+)
+configure_file(
+    ${CMAKE_SOURCE_DIR}/shader_files/outliner_fragment.fs
+    ${CMAKE_CURRENT_BINARY_DIR}/shader_files/outliner_fragment.fs
     COPYONLY
 )
 configure_file(

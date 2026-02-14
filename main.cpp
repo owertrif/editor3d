@@ -4,15 +4,18 @@ namespace fs = std::filesystem;
 #include <iostream>
 #include "glad/glad.h"
 #include <GLFW/glfw3.h>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
-#include <Model.h>
-#include <Skybox.h>
+
+#include <Scene.h>
 #include <FBO.h>
 
 #include <ctime>
 
-#define W_HEIGHT 768
-#define W_WIDTH  1360
+#define W_HEIGHT 1080
+#define W_WIDTH  1920
 
 #define SAMPLES 8
 
@@ -98,15 +101,34 @@ int main(){
 
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    //For outlining
-    //glEnable(GL_STENCIL_TEST);
-    //glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    
+    glEnable(GL_STENCIL_TEST);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
+    //Imgui
+    float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor());
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+    ImGui::StyleColorsDark();
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.ScaleAllSizes(main_scale);
+    style.FontScaleDpi = main_scale;
+
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    const char* glsl_version = "#version 330";
+    ImGui_ImplOpenGL3_Init(glsl_version);
+
+    //End imgui
 
 
     Shader shader("shader_files/vertex.vs","shader_files/fragment.fs", "shader_files/geometry.gs");
+    Shader outlining_shader("shader_files/outliner_vertex.vs","shader_files/outliner_fragment.fs");
     Shader skybox_shader("shader_files/skybox.vs", "shader_files/skybox.fs");
-    Shader light_shader("shader_files/lightvertex.vs", "shader_files/lightfragment.fs");
     Shader framebuffer_shader("shader_files/framebuffer.vs", "shader_files/framebuffer.fs");
 
     Camera camera(W_WIDTH, W_HEIGHT, glm::vec3(0.0f, 2.0f, 20.0f));
@@ -120,15 +142,19 @@ int main(){
     shader.use();
     shader.setVec4("lightColor", lightColor);
     shader.setVec3("lightPos", lightPos);
+    
     skybox_shader.use();
     skybox_shader.setInt("skyboxTexture", 0);
     framebuffer_shader.use();
     framebuffer_shader.setInt("screenTexture", 0);
 
     fs::path parentDir = fs::current_path();
-    fs::path modelPath = parentDir / "Resources" / "models" / "sword" / "scene.gltf";
+    fs::path modelPath = parentDir / "Resources" / "models" / "crow" / "scene.gltf";
+    fs::path modelPath1 = parentDir / "Resources" / "models" / "sword" / "scene.gltf";
 
-    Model model(modelPath.string().c_str());
+    std::vector<Model> models;
+    models.push_back(Model(modelPath.string().c_str(), "Crow"));
+    models.push_back(Model(modelPath1.string().c_str(), "Sword"));
 
     fs::path facesCubemap[6] =
     {
@@ -140,15 +166,7 @@ int main(){
         parentDir / "Resources" / "models" / "skybox" / "back.png"
     };
 
-    Skybox skyBox(facesCubemap);
-
-    double prevTime = 0.0f;
-    double lastframe = 0.0f;
-    double currTime = 0.0f;
-    double timeDiff;
-    double deltaTime;
-    unsigned int counter = 0;
-    double FPS = 0.0f;
+    Scene scene1(models, facesCubemap);
 
     //Vsync off/on
     glfwSwapInterval(0);
@@ -166,13 +184,11 @@ int main(){
 
     unsigned int framebufferTexture;
     glGenTextures(1, &framebufferTexture);
-    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebufferTexture);
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, SAMPLES, GL_RGB, W_WIDTH, W_HEIGHT, GL_TRUE);
-    glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
-    glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Prevents edge bleeding
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, framebufferTexture, 0);
+    glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, W_WIDTH, W_HEIGHT,0,GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferTexture, 0);
 
     unsigned int RBO;
     glGenRenderbuffers(1, &RBO);
@@ -198,7 +214,8 @@ int main(){
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, postProcessingTexture, 0);
-
+    
+    postProcessingFBO.Unbind();
     // Error checking framebuffer
     fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
@@ -215,65 +232,119 @@ int main(){
     lightVBO.Unbind();
     lightEBO.Unbind();
 
-    light_shader.use();
-    light_shader.setMat4("model", lightModel);
-    light_shader.setVec4("lightColor", lightColor);
-
-    model.Scale(glm::vec3(3.0f));
+    bool show_demo_window = false;
+    bool show_another_window = false;
+    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     //main loop 
     while(!glfwWindowShouldClose(window)){
+        
         //take care of all glfw events
         glfwPollEvents();
 
-        currTime = glfwGetTime();
-        timeDiff = currTime - prevTime;
-        deltaTime = currTime - lastframe;
-        lastframe = currTime;
-        counter++;
-
-        if (timeDiff >= 1.0f / 165.f) {
-            FPS = (1.0 / timeDiff) * counter;
-            std::string ms = std::to_string((timeDiff / counter) * 1000);
-            std::string newTitle = "3d editor or pehapse 3d viewer - " + std::to_string(FPS) + " FPS / " + ms + " ms ";
-            glfwSetWindowTitle(window, newTitle.c_str());
-            prevTime = currTime;
-            counter = 0;
-            camera.Inputs(window);
+        if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0) {
+            ImGui_ImplGlfw_Sleep(10);
+            continue;
         }
 
-        rectFBO.Bind();
-        glClearColor(0.00f, 0.00f, 0.00f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
-        
-        camera.updateMatrix(90.0f, 0.1f, 500.f);
+        int display_w, display_h;
+        glBindFramebuffer(GL_FRAMEBUFFER, rectFBO.ID);
+        glViewport(0, 0, W_WIDTH, W_HEIGHT);
+        glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-        model.Draw(shader, camera);
-
-        glDisable(GL_CULL_FACE);
-        light_shader.use();
-        light_shader.setMat4("model", lightModel);
-        camera.Matrix(light_shader, "cameraMatrix");
-        lightVAO.Bind();
-        glDrawElements(GL_TRIANGLES, sizeof(lightIndices) / sizeof(int), GL_UNSIGNED_INT, 0);
-        glEnable(GL_CULL_FACE);
-        /*glDepthFunc(GL_LEQUAL);
-        skyBox.Draw(skybox_shader, camera);
-        glDepthFunc(GL_LESS);*/
+        // Draw your model
+        scene1.Draw(shader,outlining_shader, skybox_shader, camera);
 
         glBindFramebuffer(GL_READ_FRAMEBUFFER, rectFBO.ID);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, postProcessingFBO.ID);
-        glBlitFramebuffer(0, 0, W_WIDTH, W_HEIGHT, 0, 0, W_WIDTH, W_HEIGHT, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        glBlitFramebuffer(
+            0, 0, W_WIDTH, W_HEIGHT,
+            0, 0, W_WIDTH, W_HEIGHT,
+            GL_COLOR_BUFFER_BIT,
+            GL_NEAREST
+        );
 
-        rectFBO.Unbind();
-        
-        framebuffer_shader.use();
-        rectVAO.Bind();
-        glDisable(GL_DEPTH_TEST);
-        glBindTexture(GL_TEXTURE_2D, postProcessingTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        //swap back buffer with the front buffer
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        ImGui::DockSpaceOverViewport();
+
+        //Outliner
+        {
+            ImGui::Begin("Outliner");
+            unsigned int n = 1;
+            for (auto& obj : scene1.GetObjects()) {
+                std::string temp_name = std::to_string(n) + " " + obj.Name;
+                if (ImGui::Button(temp_name.c_str()))
+                {
+                    if (scene1.selected_objID == obj.Name)
+                        scene1.selected_objID = "";
+                    else {
+                        scene1.selected_objID = obj.Name;
+                    }
+                }
+                n++;
+            }
+
+            std::string temp_name = std::to_string(n) + " " + scene1.GetSkybox().Name;
+            ImGui::Button(temp_name.c_str());
+
+            ImGui::End();
+        }
+
+        //Properties
+        {
+            ImGui::Begin("Properties");
+            static float f = 10;
+            ImGui::Text("Selected objects");
+            ImGui::Text(scene1.selected_objID.c_str());
+
+            ImVec2 size = ImGui::GetWindowSize();
+            
+            if (scene1.selected_objID != "" && scene1.GetObjectByID(scene1.selected_objID))
+            {
+                Model* obj = scene1.GetObjectByID(scene1.selected_objID);
+
+                ImGui::DragFloat3("Pos", (float*) & obj->translation);
+                ImGui::DragFloat3("Rotation", (float*) & obj->rotation);
+                ImGui::DragFloat3("Scale", (float*) & obj->scale, 0.01f, 0.01f);
+                obj->scale.x = std::max(obj->scale.x, 0.01f);
+                obj->scale.y = std::max(obj->scale.y, 0.01f);
+                obj->scale.z = std::max(obj->scale.z, 0.01f);
+
+                if (ImGui::Button("Delete")) {
+                    scene1.DeleteObject(scene1.selected_objID);
+                }
+            }
+
+            ImGui::End();
+        }
+
+        //View port
+        {
+            ImGui::Begin("Viewport");
+            ImVec2 size = ImGui::GetContentRegionAvail();
+            
+            camera.updateMatrix(90.0f, 0.1f, 500.f, glm::vec2(size.x, size.y));
+            if (ImGui::IsWindowFocused()) {
+                camera.Inputs(window, glm::vec2(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y));
+            }
+
+            ImGui::Image(
+                (void*)(intptr_t)postProcessingTexture,
+                ImGui::GetContentRegionAvail(),
+                ImVec2(0, 1),
+                ImVec2(1, 0)
+            );
+
+            ImGui::End();
+        }
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         glfwSwapBuffers(window);
     }
 
