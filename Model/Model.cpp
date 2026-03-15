@@ -14,7 +14,12 @@ Model::Model(const char* file, std::string Name, unsigned int instancing, std::v
 	this->rotation = glm::vec3(0.0f, 0.0f, 0.0f);
 	this->scale = glm::vec3(1.0f, 1.0f, 1.0f);
 
-	traverseNode(0);
+	unsigned int sceneIndex = JSON.value("scene", 0);
+
+	for (auto& node : JSON["scenes"][sceneIndex]["nodes"])
+	{
+		traverseNode(node, glm::mat4(1.0f));
+	}
 }
 
 void Model::Draw(Shader& shader_program, Camera& camera) {
@@ -69,7 +74,7 @@ std::vector<unsigned char> Model::getData() {
 	std::string uri = JSON["buffers"][0]["uri"];
 
 	std::string fileStr = std::string(file);
-	std::string fileDirectory = fileStr.substr(0, fileStr.find_last_of('\\') + 1);
+	std::string fileDirectory = fileStr.substr(0, fileStr.find_last_of('/\\') + 1);
 	bytesText = get_file_contents((fileDirectory + uri).c_str());
 
 	std::vector<unsigned char> data(bytesText.begin(), bytesText.end());
@@ -85,7 +90,7 @@ std::vector<float> Model::getFloats(json accessor){
 	std::string type = accessor["type"];
 	
 	json bufferView = JSON["bufferViews"][bufferViewInd];
-	unsigned int byteOffset = bufferView["byteOffset"];
+	unsigned int byteOffset = bufferView.value("byteOffset", 0);
 
 	unsigned int numPerVert;
 	if (type == "SCALAR") numPerVert = 1;
@@ -115,7 +120,7 @@ std::vector<GLuint> Model::getIndices(json accessor) {
 	unsigned int componentType = accessor["componentType"];
 
 	json bufferView = JSON["bufferViews"][bufferViewInd];
-	unsigned int byteOffset = bufferView["byteOffset"];
+	unsigned int byteOffset = bufferView.value("byteOffset", 0);
 
 	unsigned int beginningOfData = accByteOffset + byteOffset;
 	
@@ -237,10 +242,18 @@ void Model::loadMeshes(unsigned int indMeshes) {
 	std::vector<float> posVec = getFloats(JSON["accessors"][posAccInd]);
 	std::vector<glm::vec3> positions = groupFloatVec3(posVec);
 
-	std::vector<float> normalVec = getFloats(JSON["accessors"][normalAccInd]);
-	std::vector<glm::vec3> normals = groupFloatVec3(normalVec);
-	std::vector<float> texVec = getFloats(JSON["accessors"][texAccInd]);
-	std::vector<glm::vec2> texUVs = groupFloatVec2(texVec);
+	std::vector<glm::vec3> normals(positions.size(), glm::vec3(0.0f, 1.0f, 0.0f));
+	if (JSON["meshes"][indMeshes]["primitives"][0]["attributes"].contains("NORMAL"))
+	{
+		std::vector<float> normalVec = getFloats(JSON["accessors"][normalAccInd]);
+		normals = groupFloatVec3(normalVec);
+	}
+
+	std::vector<glm::vec2> texUVs(positions.size(), glm::vec2(0.0f, 0.0f));
+	if (JSON["meshes"][indMeshes]["primitives"][0]["attributes"].contains("TEXCOORD_0")) {
+		std::vector<float> texVec = getFloats(JSON["accessors"][texAccInd]);
+		texUVs = groupFloatVec2(texVec);
+	}
 	
 	std::vector<Vertex> vertices = assembleVertices(positions, normals, texUVs);
 	std::vector<GLuint> indices = getIndices(JSON["accessors"][indAccInd]);
@@ -252,7 +265,10 @@ void Model::loadMeshes(unsigned int indMeshes) {
 
 void Model::traverseNode(unsigned int nextNode, glm::mat4 matrix)
 {
-	
+	if (nextNode >= JSON["nodes"].size()) {
+		std::cerr << "Invalid node index: " << nextNode << std::endl;
+		return;
+	}
 	json node = JSON["nodes"][nextNode];
 	
 	glm::vec3 translation = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -308,8 +324,10 @@ void Model::traverseNode(unsigned int nextNode, glm::mat4 matrix)
 		loadMeshes(node["mesh"]);
 	}
 	if (node.find("children") != node.end()) {
-		for (unsigned int i = 0; i < node["children"].size(); i++)
+
+		for (size_t i = 0; i < node["children"].size(); i++)
 			traverseNode(node["children"][i], matNextNode);
+		std::cout << "Good" << std::endl;
 	}
 
 	std::cout << "NODE " << nextNode

@@ -47,21 +47,27 @@ void Mesh::Draw(
     shader_programm.use();
     mesh_VAO.Bind();
 
-    unsigned int numDiffuse = 0;
-    unsigned int numSpecular = 0;
+    if (textures.empty()) 
+        shader_programm.setBool("hasTexture",false);
+    else {
+        shader_programm.setBool("hasTexture", true);
 
-    for(unsigned int i = 0; i< textures.size(); i++){
-        std::string num;
-        std::string type = textures[i].type;
+        unsigned int numDiffuse = 0;
+        unsigned int numSpecular = 0;
 
-        if(type == "diffuse"){
-            num = std::to_string(numDiffuse++);
+        for (unsigned int i = 0; i < textures.size(); i++) {
+            std::string num;
+            std::string type = textures[i].type;
+
+            if (type == "diffuse") {
+                num = std::to_string(numDiffuse++);
+            }
+            else if (type == "specular") {
+                num = std::to_string(numSpecular++);
+            }
+            textures[i].textUnit(shader_programm, (type + num).c_str(), textures[i].unit);
+            textures[i].Bind();
         }
-        else if(type == "specular"){
-            num = std::to_string(numSpecular++);
-        }
-        textures[i].textUnit(shader_programm,(type+num).c_str(), i);
-        textures[i].Bind();
     }
     shader_programm.setVec3("cameraPos", camera.Position);
     camera.Matrix(shader_programm, "cameraMatrix");

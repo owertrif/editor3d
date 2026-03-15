@@ -14,6 +14,8 @@ uniform vec4 lightColor;
 uniform vec3 lightPos;
 uniform vec3 cameraPos;
 
+uniform bool hasTexture;
+
 vec4 pointLight(){
     
     vec3 lightVector = lightPos - currentPos;
@@ -94,6 +96,8 @@ vec4 spotLight(){
 
 
 void main(){
-    FragColor = directLight();
-    
+    if(hasTexture)
+        FragColor = directLight();
+    else
+        FragColor = vec4(0.5f, 0.5f, 0.5f, 1.0f);
 }

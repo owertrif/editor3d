@@ -64,9 +64,39 @@ Model* Scene::GetObjectByID(std::string ID)
 	return obj;
 }
 
+void Scene::AddObject(std::string path, std::string name)
+{
+	
+
+	std::string temp_name = name;
+	unsigned short num = 0;
+	if (nameCount.count(name) > 0)
+	{
+			temp_name = name + std::to_string(nameCount[name]);
+	}
+	nameCount[name]++;
+
+	models.push_back(Model(path.c_str(), temp_name));
+}
+
 void Scene::DeleteObject(std::string ID)
 {
 	models.erase(std::remove_if(models.begin(), models.end(), [&ID](const Model& obj) {return obj.Name == ID; }), models.end());
 	if (selected_objID == ID)
 		selected_objID = "";
+}
+
+void Scene::SetObjectName(std::string name) {
+	if (nameCount.count(name) > 0) {
+		GetObjectByID(selected_objID)->Name = name + std::to_string(nameCount[name]);
+		selected_objID = name + std::to_string(nameCount[name]);
+	}
+	else
+	{
+		GetObjectByID(selected_objID)->Name = name;
+		selected_objID = name;
+	}
+	
+	nameCount[name]++;
+	
 }

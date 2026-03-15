@@ -9,10 +9,13 @@ namespace fs = std::filesystem;
 #include <imgui_impl_opengl3.h>
 
 
+
 #include <Scene.h>
 #include <FBO.h>
 
 #include <ctime>
+#define NOMINMAX
+#include <windows.h>
 
 #define W_HEIGHT 1080
 #define W_WIDTH  1920
@@ -60,6 +63,8 @@ GLuint lightIndices[] =
     4, 6, 7
 };
 
+std::string getFilePath(const char* );
+const char* filter = "GLTF Files\0*.gltf\0All Files\0*.*\0\0";
 
 int main(){
     //GLFW window init begin
@@ -293,6 +298,23 @@ int main(){
 
             ImGui::End();
         }
+        //Tools
+        {
+            ImGui::Begin("Tools");
+            if (ImGui::Button("Add object")) {
+                std::string path = getFilePath(filter);
+                scene1.AddObject(path, std::filesystem::path(path).filename().string());
+            }
+            if (ImGui::Button("Add cube")) {
+                fs::path cubePath = parentDir / "Resources" / "models" / "cube" / "scene.gltf";
+                scene1.AddObject(cubePath.string(), "cube");
+            }
+            if (ImGui::Button("Add sphere")) {
+                fs::path spherePath = parentDir / "Resources" / "models" / "sphere" / "scene.gltf";
+                scene1.AddObject(spherePath.string(), "sphere");
+            }
+            ImGui::End();
+        }
 
         //Properties
         {
@@ -306,7 +328,14 @@ int main(){
             if (scene1.selected_objID != "" && scene1.GetObjectByID(scene1.selected_objID))
             {
                 Model* obj = scene1.GetObjectByID(scene1.selected_objID);
-
+                static char buf[255]{};
+                if (ImGui::InputText("Name", buf, ImGuiInputTextFlags_EnterReturnsTrue));
+                if (ImGui::IsItemDeactivatedAfterEdit()) 
+                {
+                    scene1.SetObjectName(buf);
+                    memset(buf, 0, sizeof(buf)); 
+                }
+                
                 ImGui::DragFloat3("Pos", (float*) & obj->translation);
                 ImGui::DragFloat3("Rotation", (float*) & obj->rotation);
                 ImGui::DragFloat3("Scale", (float*) & obj->scale, 0.01f, 0.01f);
@@ -353,4 +382,22 @@ int main(){
     glfwTerminate();
 
     return 0;
+}
+
+std::string getFilePath(const char* filter = "GLTF Files\0*.gltf\0All Files\0*.*\0\0") {
+    OPENFILENAMEA ofn;
+    char filePath[MAX_PATH] = { 0 };
+
+    ZeroMemory(&ofn, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = NULL;
+    ofn.lpstrFilter = filter;
+    ofn.lpstrFile = filePath;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+
+    if (GetOpenFileNameA(&ofn)) {
+        return std::string(filePath);
+    }
+    return "";
 }
